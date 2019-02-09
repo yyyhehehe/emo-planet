@@ -29,6 +29,9 @@ interface State {
   ships: Ship[];
 }
 
+const minZoom = 1;
+const maxZoom = 4;
+
 const toPercent = (x: number) => `${x * 100}%`;
 
 function getInitialState(): State {
@@ -116,17 +119,19 @@ export default function() {
         }
       }}
       onWheel={(e) => {
-        const rect = (e.target as HTMLDivElement).getBoundingClientRect();
-        // TODO: 줌 되있는거에 비례?반비례해서 움직여야함
-        const dx = e.clientX / rect.right - 0.5;
-        const dy = e.clientY / rect.bottom - 0.5;
+        if (1 <= camera.zoom && camera.zoom <= 4) {
+          const rect = (e.target as HTMLDivElement).getBoundingClientRect();
+          // TODO: 줌 되있는거에 비례?반비례해서 움직여야함
+          const dx = e.clientX / rect.right - 0.5;
+          const dy = e.clientY / rect.bottom - 0.5;
 
-        setCamera({
-          // TODO: 0.01은 임의의 값.
-          x: camera.x - dx * 0.01 * e.deltaY,
-          y: camera.y - dy * 0.01 * e.deltaY,
-          zoom: Math.max(1, camera.zoom - e.deltaY * 0.005),
-        });
+          setCamera({
+            // TODO: 0.01은 임의의 값.
+            x: camera.x - dx * 0.01 * e.deltaY,
+            y: camera.y - dy * 0.01 * e.deltaY,
+            zoom: Math.max(minZoom, Math.min(maxZoom, camera.zoom - e.deltaY * 0.005)),
+          });
+        }
       }}
       style={{
         height: "100%",
