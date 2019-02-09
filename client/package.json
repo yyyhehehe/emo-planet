@@ -18,8 +18,7 @@
     "lodash": "^4.17.11",
     "react": "^16.8.0-alpha.1",
     "react-dom": "^16.8.0-alpha.1",
-    "react-google-authorize": "^1.0.3",
-    "react-with-gesture": "^4.0.0"
+    "react-google-authorize": "^1.0.3"
   },
   "devDependencies": {
     "@types/gapi": "0.0.36",

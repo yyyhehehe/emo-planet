@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import { Gesture, useGesture } from "react-with-gesture";
+import React, { useEffect, useRef, useState } from "react";
 
 import { random, range, sample } from "lodash";
 
@@ -28,7 +27,6 @@ interface Ship {
 interface State {
   planets: Planet[];
   ships: Ship[];
-  camera: Camera;
 }
 
 const toPercent = (x: number) => `${x * 100}%`;
@@ -47,12 +45,16 @@ function getInitialState(): State {
       progress: 0,
     }));
 
-  return { camera: { zoom: 1, x: 0.5, y: 0.5 }, planets, ships };
+  return { planets, ships };
 }
 
 const initialState = getInitialState();
 export default function() {
-  const [state, setState] = useState(initialState);
+  const [state, setState] = useState<State>(initialState);
+  const [camera, setCamera] = useState<Camera>({ zoom: 1, x: 0.5, y: 0.5 });
+
+  const lastX = useRef<number | undefined>(undefined);
+  const lastY = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const fps = 60;
@@ -77,8 +79,7 @@ export default function() {
     });
   };
 
-  // public render() {
-  const { planets, ships, camera } = state;
+  const { planets, ships } = state;
 
   const toView = (position: Position) => {
     const repeat = (x: number) => x - Math.floor(x);
@@ -89,97 +90,94 @@ export default function() {
     };
   };
 
-  const isVisible = ({ x, y }: Position): boolean => {
-    return x >= 0 && x <= 1 && y >= 0 && y <= 1;
-  };
+  const isVisible = ({ x, y }: Position): boolean =>
+    x >= 0 && x <= 1 && y >= 0 && y <= 1;
 
   return (
-    <Gesture
-      onAction={(e) => {
-        const { camera } = state;
+    <div
+      onMouseMove={(e) => {
+        if (e.buttons % 2) {
+          if (lastX.current !== undefined && lastY.current !== undefined) {
 
-        const dx = e.previous[0] - e.xy[0];
-        const dy = e.previous[1] - e.xy[1];
+            const dx = lastX.current - e.clientX;
+            const dy = lastY.current - e.clientY;
 
-        setState({
-          ...state,
-          camera: {
-            ...camera,
-            x: camera.x + dx / 1000,
-            y: camera.y + dy / 1000,
-          },
-        });
-      }}>
-      {() =>
-        <div
-          onWheel={(e) => {
-            const { camera } = state;
-            const rect = (e.target as HTMLDivElement).getBoundingClientRect();
-            // TODO: 줌 되있는거에 비례?반비례해서 움직여야함
-            const dx = e.clientX / rect.right - 0.5;
-            const dy = e.clientY / rect.bottom - 0.5;
-
-            setState({
-              ...state,
-              camera: {
-                // TODO: 0.01은 임의의 값.
-                x: camera.x - dx * 0.01 * e.deltaY,
-                y: camera.y - dy * 0.01 * e.deltaY,
-                zoom: Math.max(1, camera.zoom - e.deltaY * 0.005),
-              },
+            setCamera({
+              ...camera,
+              x: camera.x + dx / 1000,
+              y: camera.y + dy / 1000,
             });
-          }}
-          style={{
-            height: "100%",
-            width: "100%",
-            overflowX: "hidden",
-            overflowY: "hidden",
-            backgroundColor: "black",
-          }}>
-          {planets.map((i) => {
-            const j = toView(i);
-            return (
-              <div
-                key={`planet-${i.id}`}
-                style={{
-                  position: "absolute",
-                  left: toPercent(j.x),
-                  top: toPercent(j.y),
-                }}>
-                🙂
+          }
+          lastX.current = e.clientX;
+          lastY.current = e.clientY;
+        } else {
+          lastX.current = undefined;
+          lastY.current = undefined;
+        }
+      }}
+      onWheel={(e) => {
+        const rect = (e.target as HTMLDivElement).getBoundingClientRect();
+        // TODO: 줌 되있는거에 비례?반비례해서 움직여야함
+        const dx = e.clientX / rect.right - 0.5;
+        const dy = e.clientY / rect.bottom - 0.5;
+
+        setCamera({
+          // TODO: 0.01은 임의의 값.
+          x: camera.x - dx * 0.01 * e.deltaY,
+          y: camera.y - dy * 0.01 * e.deltaY,
+          zoom: Math.max(1, camera.zoom - e.deltaY * 0.005),
+        });
+      }}
+      style={{
+        height: "100%",
+        width: "100%",
+        overflowX: "hidden",
+        overflowY: "hidden",
+        backgroundColor: "black",
+      }}>
+      {planets.map((i) => {
+        const j = toView(i);
+        return (
+          <div
+            key={`planet-${i.id}`}
+            style={{
+              position: "absolute",
+              left: toPercent(j.x),
+              top: toPercent(j.y),
+            }}>
+            🙂
               </div>
-            );
-          })}
-          {ships.map(({ id, from, to, progress }) => {
-            if (progress === 0 || progress === 1) {
-              return null;
-            }
-            const slope = (to.y - from.y) / (to.x - from.x + 0.00001);
+        );
+      })}
+      {ships.map(({ id, from, to, progress }) => {
+        if (progress === 0 || progress === 1) {
+          return null;
+        }
+        const slope = (to.y - from.y) / (to.x - from.x + 0.00001);
 
-            const x = (to.x - from.x) * (progress) + from.x;
-            const y = (to.y - from.y) * (progress) + from.y;
+        const x = (to.x - from.x) * (progress) + from.x;
+        const y = (to.y - from.y) * (progress) + from.y;
 
-            const j = toView({ x, y });
-            if (!isVisible(j)) {
-              return null;
-            }
+        const j = toView({ x, y });
+        if (!isVisible(j)) {
+          return null;
+        }
 
-            return (
-              <div
-                key={`ship-${id}`}
-                style={{
-                  position: "absolute",
-                  left: toPercent(j.x),
-                  top: toPercent(j.y),
-                  transform: `rotate(${
-                    0.25 * Math.PI
-                    + ((to.x - from.x) > 0 ? Math.atan(slope) : Math.atan(slope) + Math.PI)}rad)`,
-                }}>
-                🚀
-              </div>
-            );
-          })}
-        </div>}
-    </Gesture>
+        return (
+          <div
+            key={`ship-${id}`}
+            style={{
+              position: "absolute",
+              left: toPercent(j.x),
+              top: toPercent(j.y),
+              transform: `rotate(${
+                0.25 * Math.PI
+                + ((to.x - from.x) > 0 ? Math.atan(slope) : Math.atan(slope) + Math.PI)}rad)`,
+            }}>
+            🚀
+          </div>
+        );
+      })}
+    </div>
   );
 }
