@@ -1,1 +1,1 @@
-export const apiEndpoint = "http://localhost:8081";
+export const apiEndpoint = "https://dev.api.emo-planet.com";
